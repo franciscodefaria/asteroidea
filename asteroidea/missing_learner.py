@@ -30,12 +30,12 @@ class Learner(object):
                                  should pass `dataset_filepath` argument.""")
 
         self.model = parser.read_structure(structure_filepath, relational_data=relational_data)
-        self.configs_tables = parser.build_configs_tables(self.model)
 
         if not relational_data:
             self._read_propositional_dataset()
 
         for consistency_test in[True, False]:
+            self.configs_tables = parser.build_configs_tables(self.model)
             self.problog_model_str=parser.build_problog_model_str(
                                     self.model, self.configs_tables,
                                     probabilistic_data=probabilistic_data,
@@ -90,9 +90,7 @@ class Learner(object):
             self._log_time('E step')
             for head in configs_tables:
                 # reset configurations tables
-                configs_tables[head].loc[:, 'count'] = 0
-                if step==0:
-                    configs_tables[head].loc[:, 'real_count'] = 0
+                configs_tables[head].loc[:, 'count'] = configs_tables[head].loc[:, 'real_count']
             self.knowledge.update_weights(model)
             if not self.relational_data:
                 for i, row in self.propositional_dataset.iterrows():
@@ -103,9 +101,6 @@ class Learner(object):
                             if config['dumb_var'] in res:
                                 update_in_count = res[config['dumb_var']]
                                 configs_table.loc[c, 'count'] += update_in_count
-                                if step==0:
-                                    if update_in_count==1:
-                                        configs_table.loc[c, 'real_count'] += update_in_count
             else:
                 res = self.knowledge.eval()
                 for head in configs_tables:
@@ -114,9 +109,6 @@ class Learner(object):
                         prob = res[query]
                         dumb_var = query.split('__')[0]
                         configs_table.loc[configs_table['dumb_var'] == dumb_var, 'count'] += prob
-                        if step==0:
-                            if prob==1:
-                                configs_table.loc[configs_table['dumb_var'] == dumb_var, 'real_count'] += prob
 
             ### updating the initial ll value in learning info ###
             if old_ll == None:
@@ -224,3 +216,9 @@ class Learner(object):
                 raise Exception('Column %s in dataset is not head of any rule.'
                                 % column)
         self.logger.info("Ok")
+
+    #
+    # def _update_real_count(self):
+    #     dataset_str, constants, evidences_dict = parse_relational_dataset_to_string(self.dataset_filepath, typed=True)
+    #     for head in self.configs_tables:
+    #         configs_table = self.configs_tables[head]
